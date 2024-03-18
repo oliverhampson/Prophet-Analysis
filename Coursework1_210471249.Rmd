@@ -1,0 +1,84 @@
+---
+title: "MTH6139 Time Series"
+subtitle: "Coursework 1"
+author:
+- name: Oliver Hampson
+date: "March 2024"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Introduction
+
+Focusing on the "UKDriverDeaths" time series, we will explore whether a linear regression model is appropriate for modelling the data, and comparing this to the Meta "Prophet" tool in R, where we can make predictions on the number of future deaths and injuries. The "UKDriverDeaths" data set is a time series that gives the monthly totals of car drivers in Great Britain that have been killed or seriously injured. The data spans from January 1969 to December 1984. Compulsory wearing of seat belts was established on 31st January 1983 and we would expect our data to reflect this increased safety. 
+
+
+## 2. Observing the Data
+
+We will first install the "Rssa" package and the load its library. The "install.packages("Rssa")" code will be required at the first time of use, after which, loading the library will be sufficient. We plot the data to get a sense of the data. We can see that there is a downward trend, especially after the law was introduced in 1983. We also see that there is a huge amount of seasonality in the data. It appears that there is a big drop in deaths and injuries in the summer months compared to the winter months. This is most likely due to worse weather conditions, and it being darker in the winter time.
+
+```{r}
+library(Rssa)
+data("UKDriverDeaths")
+plot(UKDriverDeaths)
+```
+
+## 3. Establishing a Linear Model
+
+We want to now produce our linear model to see how well this fits to our data. We create a data frame, allowing us to separate the x and y components of the data. We create out linear model with the "lm()" function and us the "abline()" function to see how this compares to the "UKDriverDeaths" time series.As expected, the linear model completely fails to model the seasonality of the data. The linear model does show a downward trend as expected, but the trend fails to capture the slight increase in driver deaths between approximately 1969-1973. The sharp decrease after 1983 is also not well modelled.
+
+Now let us run a linear regression model to get a feel for the trend of the data. We can see that the linear regression model captures the trend of the data well, however does not capture any of the seasonailty and hence isn't a good model for us to use. From the summary we can see that the gradient of the line is 1.308 and so for each month that goes by, atmospheric co2 levels increase by 1.308 parts per million. 
+
+```{r}
+DriverDeaths <- data.frame(UKDriverDeaths)
+x <- time(UKDriverDeaths)
+y <- DriverDeaths$UKDriverDeaths
+linearmodel=lm(y~x, na.action = NULL)
+plot(y,type="l")
+abline(linearmodel)
+```
+
+Using the "summary()" function we see that the gradient of the regression line is approximately -28, indicating that for every year that passes, the number of driver deaths and injuries decreases by 28 people.
+
+```{r}
+summary(linearmodel)
+```
+
+## 4. Preparing for Prophet
+
+
+If prophet is not already installed, use the code "install.packages("prophet")". After this, "library(prophet)" will be sufficient. We then create a data frame from our time series so that we can use Prophet.
+
+```{r}
+library(prophet)
+DriverDeaths.df = data.frame(
+  ds=zoo::as.yearmon(time(UKDriverDeaths)), 
+  y=UKDriverDeaths)
+```
+
+## 5. Using Prophet
+
+We use the prophet tool to prepare our new model. We then use the prophet function "make_future_dataframe" to make predictions on how the data will look for a given number of periods. You can change the frequency to "month", or "year" for example depending on how often you wnat the model to predict. Choosing 60 periods here with monthly predictions will give us predictions for the next 5 years.
+
+The seasonality of this model could be further developed by including "weekly.seasonality=TRUE" and "daily.seasonality=TRUE" when creating the prophet model.
+
+```{r}
+prophetmodel = prophet::prophet(DriverDeaths.df)
+prophetfuture = prophet::make_future_dataframe(prophetmodel, periods=60, freq="month")
+```
+
+## 6. Predicting with Prophet
+
+In the graph below, the black dots represent out actual driver death and injury data. The blue line is the prediction by prophet. You can see that the black dots stop at 1985 as we have no more data after here. Instead, we just have the predictions for the next 5 years. It is clear to see that prophet has very importantly captured the seasonality of the data. Our predicted graph also suggests that in the summer of 1989, driver deaths and injuries could fall to as low as approximately 900.
+
+
+```{r}
+forecast = predict(prophetmodel, prophetfuture)
+plot(prophetmodel,forecast)
+```
